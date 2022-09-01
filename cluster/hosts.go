@@ -38,7 +38,6 @@ func (hosts Hosts) ParallelEach(filter ...func(h *Host) error) error {  //如注
 		}()
     wg.Wait()
 		}
-    fmt.Printf("erroros lens is %d",len(errors))
 	if len(errors) > 0 {
 		return fmt.Errorf("failed on %d hosts:\n - %s", len(errors), strings.Join(errors, "\n - "))
 	}

@@ -71,7 +71,7 @@ func(h *Host) Execcmd(cmd string) (string,error) {
 		//session.Stderr = &buffstderr
 		//fmt.Println(buffstdout.String())
 		//输出是[]bytes，必须这样转换
-	//fmt.Println(string(stdoutandstderr))
+	//fmt.Printf("%s failed run on %s",cmd,h.Ip)
 	return string(stdoutandstderr),err
 	//log.Fatal("run "+cmd+" failed")
 	//return err

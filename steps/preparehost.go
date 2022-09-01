@@ -174,7 +174,7 @@ func (p PrepareHost) Run() error{
 
 	 }
 
-	 return p.Config.Hosts.ParallelEach(sethostname,updateetchosts,disablefirewalld,swapoff,disableselinux,modifysysctl,settimezone)
+	 return p.Config.Hosts.ParallelEach(updateetchosts,sethostname,disablefirewalld,swapoff,disableselinux,modifysysctl,settimezone)
 	 /*
 	var tg sync.WaitGroup
     tasks=append(tasks,sethostname,updateetchosts,disablefirewalld,swapoff,disableselinux,modifysysctl,settimezone)
