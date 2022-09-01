@@ -16,7 +16,187 @@ type PrepareHost struct {
 
 func (p PrepareHost) Run() error{
 	p.Config.Hosts.Generatehostname()
+    var tasks []func(h *cluster.Host) error
+    sethostname := func(h *cluster.Host) error {
+		getprevioushostname := "hostname"
+		previoushostname,err := h.Execcmd(getprevioushostname)
+		if err != nil {
+			return err
+		}
+		
+		if previoushostname != h.Hostname {
+			sethostnamecmd := fmt.Sprintf("hostnamectl set-hostname %s",h.Hostname)
+			if _,err := h.Execcmd(sethostnamecmd); err != nil {
+				return err
+			}
+			
+		}
+		return nil
+	}
+
+	updateetchosts := func(h *cluster.Host) error {
+		getprevioushostname := "hostname"
+		previoushostname,err := h.Execcmd(getprevioushostname)
+		if err != nil {
+			return err
+		}
+		replacehosts := fmt.Sprintf("grep -q '127.0.1.1 %s %s' /etc/hosts || sed -i 's/%s/%s/g' /etc/hosts",
+		h.Hostname,h.Hostname,strings.Replace(previoushostname,"\n","",-1),h.Hostname)
+		 _,err = h.Execcmd(replacehosts)
+        if err != nil {
+	    return err
+            }
+		for _,s := range p.Config.Hosts {
+			setcmd := fmt.Sprintf("grep -q '%s %s' /etc/hosts || echo '%s %s' >> /etc/hosts",s.Ip,s.Hostname,s.Ip,s.Hostname)
+			//setcmd := "grep -q "+'s.Ip s.Hostname+" /etc/hosts || echo "+ s.Ip+" "+s.Hostname+" >> /etc/hosts"
+			_,err := h.Execcmd(setcmd)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	disablefirewalld := func(h *cluster.Host) error {
+		checkfirewalld := "systemctl status firewalld"
+	    checkresult,err := h.Execcmd(checkfirewalld)
+		if err != nil {
+			return err
+		}
+		
+	    if !strings.Contains(checkresult,"inactive") {
+			stopfirewallcmd := "systemctl stop firewalld;systemctl disable firewalld;iptables -F;iptables -X"
+			if _,err := h.Execcmd(stopfirewallcmd);err != nil {
+				return err
+			}
+
+	    }
+        return nil
+	}
+    
+	swapoff := func(h *cluster.Host) error {
+
+		swapcheck := "swapon -s"
+		swapstatus,err := h.Execcmd(swapcheck)
+		if err != nil {
+			return err
+		}
+		if swapstatus != ""{
+			swapoffcmd := "swapoff -a && sed -i '/ swap / s/^/#/' /etc/fstab"
+			if _,err := h.Execcmd(swapoffcmd);err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+    
+	 disableselinux := func(h *cluster.Host) error {
+		getselinuxstatus := "getenforce"
+		selinuxstatus,err := h.Execcmd(getselinuxstatus)
+		if err != nil {
+			return err
+		}
+		if selinuxstatus == "Enforcing\n" {
+        disableselinux := "setenforce 0;sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config"
+		if _,err := h.Execcmd(disableselinux);err != nil {
+			return err
+		}
+		}
+        return nil
+	 }
+
+	 modifysysctl := func(h *cluster.Host) error {
+		if !utils.FileExists("/etc/sysctl.d/kubernetes.conf") {
+			t,err := template.New("sysctlk8s").Parse(utils.Sysctlkubernetes)
+			if err != nil {
+			return err
+			}
+			remotefile := "/etc/sysctl.d/kubernetes.conf"
+			dstsysctlfile,err := h.Getremotefile(remotefile)
+			if err != nil {
+			return err
+			}
+			defer dstsysctlfile.Close()
+			err = t.Execute(dstsysctlfile,utils.Sysctlkubernetes)
+			if err != nil {
+			return err
+			}
+			}
+        return nil
+	 }
+
+     settimezone := func(h *cluster.Host) error {
+     
+		gettimezone := "timedatectl |grep 'Time zone'|awk -F':' '{print $2}'|awk '{print $1}'"
+		timezone,err := h.Execcmd(gettimezone)
+	   if err != nil {
+		   return err
+	   }
+	   if timezone != "Asia/Shanghai" {
+	   settimezonecmd := "timedatectl set-timezone Asia/Shanghai"
+	   if _,err := h.Execcmd(settimezonecmd);err != nil {
+		return err
+	   }
+	   }
+	   installchronycmd := "rpm -qa|grep chrony || yum install -y chrony"
+       if _,err := h.Execcmd(installchronycmd);err != nil {
+		return err
+	   }
+
+	   type chronyconfig struct {
+		   AllHostsIp []string
+		   FirstController cluster.Host
+	   }
+	   var temp chronyconfig
+	   temp.AllHostsIp = p.Config.Hosts.GetAllHostsIp()
+	   temp.FirstController = *p.Config.Hosts.FirstController()
+	   t,err := template.New("chronyconf").Parse(utils.Chronyconf)
+	   if err != nil {
+		   return err
+		   }
+	   remotefile := "/etc/chrony.conf"
+	   dsttimefile,err := h.Getremotefile(remotefile)
+	   if err != nil {
+		   return err
+	   }
+	   defer dsttimefile.Close()
+	   err = t.Execute(dsttimefile,temp)
+	   if err != nil {
+		   return err
+	   }
+	   restartchronydcmd := "systemctl restart chronyd"
+	   if _,err := h.Execcmd(restartchronydcmd);err != nil {
+		   return err
+	   }
+       return nil
+
+
+	 }
 	
+    tasks=append(tasks,sethostname,updateetchosts,disablefirewalld,swapoff,disableselinux,modifysysctl,settimezone)
+	
+	err  := make(chan error) 
+	var errors []string
+     for _,task := range tasks {
+		go func() {
+			err <- p.Config.Hosts.ParallelEach(task)
+		}()
+		go func() {
+			for e := range err {
+				if e != nil {
+					errors = append(errors,   e.Error())
+				}
+			}
+
+		}()
+		if len(errors)>0 {
+			return fmt.Errorf("%s", strings.Join(errors, "\n - "))
+		}	
+		  
+	 }
+     return nil
+	}
+    /*
     return p.Config.Hosts.ParallelEach(func(h *cluster.Host) error {
 		cmdfirst := cluster.CmdStrings{Cmd: []string{} }
 		getprevioushostname := "hostname"
@@ -129,7 +309,7 @@ func (p PrepareHost) Run() error{
 	
 
 }
-
+*/
 
 
 
