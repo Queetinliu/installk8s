@@ -1,0 +1,12 @@
+原来的操作 
+如果不联网，移除原来的repo配置
+安装createrepo及httpd
+
+然后实现无密码服务  //这个在当前没必要了
+baserpms:
+yumdownloader -y httpd createrepo libxml2-python libxml2-2.9.1-6.el7_9.6.x86_64 --destdir=/root/k8s/packages/baserpms/ --resolve  
+#因为依赖问题，minimal系统自带的libxml2与libxml2-python不兼容，需下载这个
+globalrpms:
+yumdownloader -y ntfs-g3 nfs-utils pciutils --destdir=/root/globalrpms/ --resolve
+
+

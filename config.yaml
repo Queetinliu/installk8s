@@ -1,0 +1,10 @@
+---
+hosts: 
+- role: all
+  ip: 192.168.56.16
+  port: 22
+  password: 123456
+- role: all
+  ip: 192.168.56.17
+  port: 22
+  password: 123456
