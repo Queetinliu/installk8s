@@ -15,11 +15,13 @@ func (hosts Hosts) ParallelEach(filter ...func(h *Host) error) error {  //如注
 		address string
 		err     error
 	}
-	ec := make(chan erritem, 1)
+	//ec := make(chan erritem, 1)
+	ec := make(chan erritem)
 
 	for _, f := range filter {
+		
 		wg.Add(len(hosts))  //将主机数量作为任务添加进去
-
+       
 		for _, h := range hosts {
 			go func(h *Host) {
 				ec <- erritem{h.Ip, f(h)}  //每个主机执行参数中方法，将错误拼接起来
@@ -34,9 +36,8 @@ func (hosts Hosts) ParallelEach(filter ...func(h *Host) error) error {  //如注
 				wg.Done()
 			}
 		}()
-
-		wg.Wait()
-	}
+    wg.Wait()
+		}
 
 	if len(errors) > 0 {
 		return fmt.Errorf("failed on %d hosts:\n - %s", len(errors), strings.Join(errors, "\n - "))

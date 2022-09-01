@@ -2,11 +2,12 @@ package steps
 
 import (
 	"bjsh/installk8s/cluster"
-	"text/template"
 	"bjsh/installk8s/utils"
+	"text/template"
+
 	//log "github.com/sirupsen/logrus"
-	"strings"
 	"fmt"
+	"strings"
 )
 
 
@@ -16,7 +17,7 @@ type PrepareHost struct {
 
 func (p PrepareHost) Run() error{
 	p.Config.Hosts.Generatehostname()
-    var tasks []func(h *cluster.Host) error
+    //var tasks []func(h *cluster.Host) error
     sethostname := func(h *cluster.Host) error {
 		getprevioushostname := "hostname"
 		previoushostname,err := h.Execcmd(getprevioushostname)
@@ -172,12 +173,16 @@ func (p PrepareHost) Run() error{
 
 
 	 }
-	
+
+	 return p.Config.Hosts.ParallelEach(sethostname,updateetchosts,disablefirewalld,swapoff,disableselinux,modifysysctl,settimezone)
+	 /*
+	var tg sync.WaitGroup
     tasks=append(tasks,sethostname,updateetchosts,disablefirewalld,swapoff,disableselinux,modifysysctl,settimezone)
 	
 	err  := make(chan error) 
 	var errors []string
      for _,task := range tasks {
+		tg.Add(len(tasks))
 		go func() {
 			err <- p.Config.Hosts.ParallelEach(task)
 		}()
@@ -195,6 +200,7 @@ func (p PrepareHost) Run() error{
 		  
 	 }
      return nil
+	 */
 	}
     /*
     return p.Config.Hosts.ParallelEach(func(h *cluster.Host) error {
