@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -36,25 +37,14 @@ adminReq := utils.Request{
 	CACert: caCertPath,
 	Hostnames: []string{},
 } 
-/*
-_,err = utils.EnsureCertificate(CertRootDir,adminReq)
-if err != nil {
-	return err
-}
 
-etcdReq := utils.Request{
-	Name: "etcd",
-	CN: "etcd",
-	O: "k8s",
-	CAKey: caCertKey,
-	CACert: caCertPath,
-	Hostnames: []string{},
-} 
-*/
-var etcdhostlist []string
-for _,host := range g.Config.Hosts.Etcds() {
-	etcdhostlist=append(etcdhostlist,host.Ip)
-}
+var (
+	etcdhostlist []string
+    apiserverhostlist []string
+	controllerhostlist []string
+	schedulerhostlist []string
+)
+etcdhostlist = g.Config.Hosts.AppendHostlist("etcd",etcdhostlist)
 etcdhostlist=append(etcdhostlist,"127.0.0.1")
 etcdReq := utils.Request{
 	Name: "etcd",
@@ -64,13 +54,61 @@ etcdReq := utils.Request{
 	CACert: caCertPath,
 	Hostnames: etcdhostlist,
 }
+apiserverhostlist = g.Config.Hosts.AppendHostlist("kube-apiserver",apiserverhostlist)
+apiserverhostlist = append(apiserverhostlist, "127.0.0.1","10.88.0.1","kubernetes","kubernetes.default","kubernetes.default.svc","kubernetes.default.svc.cluster","kubernetes.default.svc.cluster.local.")
+apiserverReq := utils.Request{
+	Name: "kube-apiserver",
+	CN: "kubernetes-master",
+	O: "k8s",
+	CAKey: caCertKey,
+	CACert: caCertPath,
+	Hostnames: apiserverhostlist,
+}
+metricsserverReq := utils.Request{
+	Name: "proxy-client",
+	CN: "aggregator",
+	O: "k8s",
+	CAKey: caCertKey,
+	CACert: caCertPath,
+	Hostnames: []string{},
+}
+controllerhostlist = g.Config.Hosts.AppendHostlist("kube-controller-manager",controllerhostlist)
+controllerhostlist = append(controllerhostlist, "127.0.0.1")
+controllerReq := utils.Request{
+	Name: "kube-controller-manager",
+	CN: "system:kube-controller-manager",
+	O: "system:kube-controller-manager",
+	CAKey: caCertKey,
+	CACert: caCertPath,
+	Hostnames: controllerhostlist,
+}
+schedulerhostlist = g.Config.Hosts.AppendHostlist("kube-scheduler",schedulerhostlist)
+schedulerhostlist = append(schedulerhostlist, "127.0.0.1")
+schedulerReq := utils.Request{
+	Name: "kube-scheduler",
+	CN: "system:kube-scheduler",
+	O: "system:kube-scheduler",
+	CAKey: caCertKey,
+	CACert: caCertPath,
+	Hostnames: schedulerhostlist,
+}
+kubeproxyReq := utils.Request{
+	Name: "kube-proxy",
+	CN: "system:kube-proxy",
+	O: "k8s",
+	CAKey: caCertKey,
+	CACert: caCertPath,
+	Hostnames: []string{},
+}
 var reqs []utils.Request
-reqs=append(reqs,adminReq,etcdReq)
+reqs=append(reqs,adminReq,etcdReq,apiserverReq,metricsserverReq,controllerReq,schedulerReq,kubeproxyReq)
 var wg sync.WaitGroup
 var errors []string
-wg.Add(len(reqs))
+
 ec := make(chan error)
 for _,req := range reqs {
+	wg.Add(1)
+	fmt.Println(req.Hostnames)
 	go func(r utils.Request) {
 		_,err := utils.EnsureCertificate(CertRootDir,r)
 		ec <- err

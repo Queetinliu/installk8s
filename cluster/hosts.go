@@ -147,3 +147,19 @@ func (hosts *Hosts) Generatehostname() error {
 	
 	return nil
 	}
+
+	func(hosts *Hosts) AppendHostlist(component string,hostlist []string) []string {
+        switch component  {
+	case "kube-apiserver","kube-controller-manager","kube-scheduler":
+		   for _,host := range hosts.Controllers() {
+			hostlist = append(hostlist,host.Ip)
+		   }
+		  
+    case "etcd":
+		for _,host := range hosts.Etcds() {
+			hostlist = append(hostlist,host.Ip)
+		   }
+        
+		}
+		return hostlist
+	}

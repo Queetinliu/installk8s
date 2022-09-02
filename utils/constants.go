@@ -8,9 +8,7 @@ baseurl=http://{{ . }}:18080
 enabled=1
 gpgcheck=0
 `
-Allhosts string = `
-{{ range $key,$value :=  . }} {{ $key }}{{ $value }}{{ "\n" }}{{ end }}
-`
+
 Sysctlkubernetes string = `
 net.bridge.bridge-nf-call-iptables=1
 net.bridge.bridge-nf-call-ip6tables=1
@@ -42,15 +40,14 @@ logdir /var/log/chrony
 `
 CertSecureMode = 0640
 CertMode = 0644
+DefaultDataDir = "/opt/k8s"
+KubeletVolumePluginDir = "/usr/libexec/k8s/kubelet-plugins/volume/exec"
 
-Etcdhost = `
-'{% range .Ip %}
-"{{ . }}",
-{% endfor %} "127.0.0.1"'
-`
 )
 
+/*
 type CfgVars struct {
 	CertRootDir string
 }
+*/
 

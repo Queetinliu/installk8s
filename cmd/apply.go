@@ -22,7 +22,7 @@ var applyCommand = &cli.Command{    //这里使用github.com/urfave/cli/v2这个
         //fmt.Println(config.Hosts)
 		//config.Addstep(&steps.UpdateHostName{Config: config.Config},&steps.SetEtcHosts{Config: config.Config},&steps.DisableFirewall{Config: config.Config},&steps.SwapOff{Config: config.Config},
 			//&steps.DisableSeLinux{Config: config.Config},&steps.ModifySysctl{Config: config.Config},&steps.SetTimeZone{Config: config.Config})
-			config.Addstep(&steps.PrepareHost{Config: config.Config},&steps.GenerateCerts{Config: config.Config})
+			config.Addstep(&steps.PrepareHost{Config: config.Config},&steps.GenerateCerts{Config: config.Config},&steps.Disconnect{Config: config.Config})
 		/*
 		if err := stepsconfig.Settimezone();err != nil {
 			return err

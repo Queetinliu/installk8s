@@ -23,6 +23,13 @@ func GetCertRootDir() string {
 }
 
 
+
+
+
+
+
+
+
    /*
 func parseip(s interface{}) ([]Host,error) {
    var servers []Host

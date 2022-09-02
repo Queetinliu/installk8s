@@ -16,6 +16,8 @@ Ip string `yaml:"ip"`
 Port string `yaml:"port"`
 Password string `yaml:"password"`
 Hostname string `yaml:"hostname"`
+sshclient *ssh.Client
+sftpclient *sftp.Client
 }
 
 
@@ -51,12 +53,14 @@ func(c CmdStrings) Runcmd(h *Host) error {
 
 
 func(h *Host) Execcmd(cmd string) (string,error) {
-	sshclient,err := h.getsshclient()
+	if !h.IsSshConnected() {
+	err := h.getsshclient()
 	if err != nil {
 		log.Fatal(err)
         return "",err
 	}
-	session, err := sshclient.NewSession()
+}
+	session, err := h.sshclient.NewSession()
 	if err != nil {
 		log.Fatal("create ssh session failed")
 	    return "",err
@@ -86,7 +90,7 @@ func(h *Host) Execcmd(cmd string) (string,error) {
 	}
 	
 
-func(h *Host) getsshclient() (*ssh.Client, error) { 
+func(h *Host) getsshclient()  error { 
 	clientconfig := &ssh.ClientConfig{
 		User: "root",
 		Auth: []ssh.AuthMethod{ssh.Password(h.Password)},
@@ -98,31 +102,37 @@ func(h *Host) getsshclient() (*ssh.Client, error) {
 	addr := fmt.Sprintf("%s:%s", h.Ip, h.Port)
 	 sshClient, err := ssh.Dial("tcp", addr, clientconfig)
 	 if err != nil {
-	   return nil, err
+	   return err
 	}
-     return sshClient,nil
+	h.sshclient=sshClient
+     return nil
     }
 
 
-func(h *Host) getsftpclient() (*sftp.Client, error) {
-	sshclient,err := h.getsshclient()
+func(h *Host) getsftpclient() error {
+	if !h.IsSshConnected() {
+	err := h.getsshclient()
 	if err != nil {
-		return nil,err
+		return err
 	}
-	sftpClient, err := sftp.NewClient(sshclient)
+}
+	sftpClient, err := sftp.NewClient(h.sshclient)
 	if err != nil {
-	return nil, err
+	return err
 	}
-		return sftpClient, nil
+	h.sftpclient=sftpClient
+		return  nil
    }
 
 
 func(h *Host) Getremotefile(file string) (*sftp.File,error) {
-    sftpclient,err := h.getsftpclient()
+	if !h.IsSftpConnected() {
+    err := h.getsftpclient()
 	if err != nil {
 		return nil,err
 	}
-	dstFile, err := sftpclient.Create(file)
+}
+	dstFile, err := h.sftpclient.Create(file)
 	if err != nil {
 	log.Fatal(err)
 	return nil,err
@@ -131,3 +141,26 @@ func(h *Host) Getremotefile(file string) (*sftp.File,error) {
 	return dstFile,nil
 }
 
+func(h *Host) IsSshConnected() bool {
+	if h.sshclient == nil {
+		return false
+	} else {
+		return true
+	}
+}
+
+func(h *Host) IsSftpConnected() bool {
+	if h.sftpclient == nil {
+		return false
+	} else {
+		return true
+	}
+}
+
+func(h *Host) DisSshconnect() {
+	h.sshclient.Close()
+}
+
+func(h *Host) DisSftpconnect() {
+	h.sftpclient.Close()
+}
