@@ -1,11 +1,13 @@
 package cluster
 
 import (
-	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
 	"fmt"
 	"net"
+	"strings"
+
+	"github.com/pkg/sftp"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 )
 
 type Host struct {
@@ -66,6 +68,9 @@ func(h *Host) Execcmd(cmd string) (string,error) {
 		//用CombinedOutput会同时获取Stdout和Stderr，目前开发阶段比较有用
 	fmt.Println(h,cmd)	
 	stdoutandstderr,err := session.CombinedOutput(cmd)
+	if strings.Contains(cmd,"systemctl status") {
+		return string(stdoutandstderr),nil
+	}
 	if err != nil {
 		//var buffstderr bytes.Buffer
 		//session.Stderr = &buffstderr
