@@ -1,11 +1,13 @@
 package steps
+
 import (
 	"bjsh/installk8s/cluster"
 	"bjsh/installk8s/utils"
-	"path/filepath"
-	"github.com/sirupsen/logrus"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sync"
+	"github.com/sirupsen/logrus"
 )
 
 
@@ -34,11 +36,12 @@ adminReq := utils.Request{
 	CACert: caCertPath,
 	Hostnames: []string{},
 } 
+/*
 _,err = utils.EnsureCertificate(CertRootDir,adminReq)
 if err != nil {
 	return err
 }
-/*
+
 etcdReq := utils.Request{
 	Name: "etcd",
 	CN: "etcd",
@@ -48,6 +51,47 @@ etcdReq := utils.Request{
 	Hostnames: []string{},
 } 
 */
+var etcdhostlist []string
+for _,host := range g.Config.Hosts.Etcds() {
+	etcdhostlist=append(etcdhostlist,host.Ip)
+}
+etcdhostlist=append(etcdhostlist,"127.0.0.1")
+etcdReq := utils.Request{
+	Name: "etcd",
+	CN: "etcd",
+	O: "k8s",
+	CAKey: caCertKey,
+	CACert: caCertPath,
+	Hostnames: etcdhostlist,
+}
+var reqs []utils.Request
+reqs=append(reqs,adminReq,etcdReq)
+var wg sync.WaitGroup
+var errors []string
+wg.Add(len(reqs))
+ec := make(chan error)
+for _,req := range reqs {
+	go func(r utils.Request) {
+		_,err := utils.EnsureCertificate(CertRootDir,r)
+		ec <- err
+	}(req)
+
+    go func() {
+		for err := range ec {
+			if err != nil {
+				errors=append(errors,err.Error())
+			}
+			wg.Done()
+		}
+	}()
+    wg.Wait()
+
+}
+if len(errors) > 0 {
+	return fmt.Errorf("%d certs create failed",len(errors))
+}
 
 return nil
 }
+
+

@@ -43,8 +43,11 @@ logdir /var/log/chrony
 CertSecureMode = 0640
 CertMode = 0644
 
-
-
+Etcdhost = `
+'{% range .Ip %}
+"{{ . }}",
+{% endfor %} "127.0.0.1"'
+`
 )
 
 type CfgVars struct {
