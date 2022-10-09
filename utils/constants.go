@@ -40,6 +40,7 @@ logdir /var/log/chrony
 `
 CertSecureMode = 0640
 CertMode = 0644
+DefaultFileMode = 0755
 DefaultDataDir = "/opt/k8s"
 KubeletVolumePluginDir = "/usr/libexec/k8s/kubelet-plugins/volume/exec"
 

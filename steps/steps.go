@@ -24,10 +24,6 @@ m.Steps=append(m.Steps,s...)
 
 func (m *Manager) Run() error {
 
-
-
-
-
 	for _,step := range m.Steps {
 		result := step.Run()
 		if result != nil {
